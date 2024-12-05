@@ -1,19 +1,11 @@
 import pygame
 import sounddevice as sd
 import numpy as np
+from math import pi
 # import matplotlib.pyplot as plt
 
-#####|#####|#####|#####
-#####|#####|#####|#####
-
-# pygame setup
-pygame.init()
-screen = pygame.display.set_mode((900, 600)) # w, h
-clock = pygame.time.Clock()
-running = True
-
-#####|#####|#####|#####
-#####|#####|#####|#####
+MOUSE_SENSE = 50
+# CENT = 1.0005777895
 
 start_idx = 0 # used in output buffer
 input_buffer = 0
@@ -24,6 +16,23 @@ octave = 4
 
 get_freq = lambda k : round(440* 2**((k-49)/12),3) # get frequency from key # (1-88)
 get_key = lambda f : round(12 * np.log2(f/440) + 49) % 12 # get key from frequency
+
+#####|#####|#####|#####
+#####|#####|#####|#####
+
+# pygame setup
+pygame.init()
+screen = pygame.display.set_mode((900, 600)) # w, h
+clock = pygame.time.Clock()
+running = True
+
+pygame.font.init()
+screen_font = pygame.font.SysFont('ocraextended', 16) # font, font size
+osc_font = pygame.font.SysFont('ocraextended', 12)
+
+text_surface = screen_font.render('py_synth v0.02', False, (0, 0, 0)) # text, aa, rgb
+octave_label = screen_font.render(f'octave: {str(octave)}', False, (0, 0, 0))
+# octave_txt   = screen_font.render(str(octave), False, (0, 0, 0))
 
 #####|#####|#####|#####
 #####|#####|#####|#####
@@ -81,39 +90,88 @@ class Keyboard:
             pygame.draw.rect(self.synth_screen, key_col, self.key_dict[i][0])
         return
 
+class Potentiometer:
+    def __init__(self, _screen, _x, _y, _rad=16):
+        self.screen = _screen
+
+        self.xpos = _x
+        self.ypos = _y
+        self.rad = _rad
+        self.theta = 0
+        self.value = .5
+
+        self.pressed = False
+        self.pressed_y = 0
+        return
+
+    def processEvent(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and not self.pressed:
+            _pos = pygame.mouse.get_pos()
+            if ((_pos[1]-self.ypos)*(_pos[1]-self.ypos) + (_pos[0]-self.xpos)*(_pos[0]-self.xpos)) > self.rad*self.rad: return
+            self.pressed_y = _pos[1]
+            self.pressed = True
+        if event.type == pygame.MOUSEBUTTONUP:
+            self.pressed = False
+        if event.type == pygame.MOUSEMOTION and self.pressed:
+            new_val = (self.pressed_y - pygame.mouse.get_pos()[1])
+            self.update(new_val)
+
+    def update(self, _new_val):
+        self.theta = min(max(-3*pi/4,self.theta + _new_val/MOUSE_SENSE), 3*pi/4)
+        self.value = (2*self.theta)/(3*pi) + .5
+        return
+
+    def draw(self):
+        pygame.draw.circle(self.screen, "slategrey", [self.xpos, self.ypos], self.rad)
+        pygame.draw.aaline(self.screen, "white", [self.xpos, self.ypos], [self.xpos+.8*self.rad*np.sin(self.theta), self.ypos-.8*self.rad*np.cos(self.theta)], True)
+        return
+
 class Oscillator:
     def __init__(self, _screen):
         self.synth_screen = _screen
         self.waveform = 0 # 0 sin, 2 tri, 3 saw, 4 sqr
-        # VARS
+
+        self.fine_txt = osc_font.render('f:0', False, (0,0,0))
+        self.coarse_txt = osc_font.render('c:0', False, (0,0,0))
+        self.btn_left   = osc_font.render('<', True, (255,255,255))
+        self.btn_right  = osc_font.render('>', True, (255,255,255))
+
         self.osc_x = 10
         self.osc_y = 200
         self.osc_width = 200
         self.osc_height = 100
         self.osc_bw = 4
-
         self.osc_color = 'honeydew3'
 
-        # self.waveform = 
         self.amp = .2
         self.coarse = 0
         self.fine = 0
 
-        # UI
-        # pot_img
-        # vol_pot (0,max_amp)
-        # coarse pot (-12,12) semitones
-        # fine pot (-100,100) cents
-
         self.wavefuncs = [
-            lambda t : np.sin(2*np.pi*t),
+            lambda t : np.sin(2*pi*t),
             lambda t : 2*np.abs(t-np.floor(t+1/2)) - 1,
             lambda t : (t-np.floor(.5+t)),
-            lambda t : np.copysign(np.ones(len(t)).reshape(-1,1),np.sin(2*np.pi*t))
+            lambda t : np.copysign(np.ones(len(t)).reshape(-1,1),np.sin(2*pi*t))
         ]
 
+        # UI
+        self.coarse_pot = Potentiometer(_screen, self.osc_x+self.osc_width*3/5, self.osc_y+self.osc_height/2) # (-12,12) semitones
+        self.fine_pot = Potentiometer(_screen, self.osc_x+self.osc_width*4/5, self.osc_y+self.osc_height/2, 12)   # (-100,100) cents
         return
-    
+
+    def processEvent(self, event):
+        # check button events (mouse over and pressed)
+
+        self.fine_pot.processEvent(event)
+        self.coarse_pot.processEvent(event)
+
+        self.coarse = round(24*(self.coarse_pot.value-.5))
+        self.fine   = round(200*(self.fine_pot.value-.5))
+
+        self.fine_txt   = osc_font.render(f'f:{self.fine}', False, (0,0,0))
+        self.coarse_txt = osc_font.render(f'c:{self.coarse}', False, (0,0,0))
+        return
+
     def drawWF(self, samples=32):
         pygame.draw.rect(screen, (0,0,0), [self.osc_x+self.osc_width/6 - 10, self.osc_y+self.osc_height/2 - 20, 70, 40])
         pygame.draw.line(screen, (255,255,255), [self.osc_x+self.osc_width/6, self.osc_y+self.osc_height/2], [self.osc_x+self.osc_width/6 + 50, self.osc_y+self.osc_height/2], 3)
@@ -128,6 +186,17 @@ class Oscillator:
     def drawOsc(self):
         pygame.draw.rect(self.synth_screen, (0, 0, 0), [self.osc_x, self.osc_y, self.osc_width, self.osc_height], self.osc_bw) # border
         pygame.draw.rect(self.synth_screen, self.osc_color, [self.osc_x+self.osc_bw, self.osc_y+self.osc_bw, self.osc_width-self.osc_bw*2, self.osc_height-self.osc_bw*2])
+
+        self.fine_pot.draw()
+        self.coarse_pot.draw()
+
+        self.synth_screen.blit(self.coarse_txt, (self.osc_x+self.osc_width*3/5 - 12,self.osc_y+20))
+        self.synth_screen.blit(self.fine_txt, (self.osc_x+self.osc_width*4/5 - 12,self.osc_y+22))
+
+        pygame.draw.rect(self.synth_screen, (0,0,0), [self.osc_x+self.osc_width-24,self.osc_y+4,8,16])
+        self.synth_screen.blit(self.btn_left,  (self.osc_x+self.osc_width-28,self.osc_y+4))
+        self.synth_screen.blit(self.btn_right, (self.osc_x+self.osc_width-12,self.osc_y+4))
+
         self.drawWF()
         return
 
@@ -149,14 +218,16 @@ def callback(outdata, frames, time, status):
     outdata[:] = 0
     if (len(idx) != 0):
         for key in idx:
-            m_freq = get_freq(12*octave+key-8) # -8 to align with A4 tuning (key 49)
+            m_freq = get_freq(12*octave+key+m_osc.coarse-8) # -8 to align with A4 tuning (key 49)
+            m_freq *= 1 if (m_osc.fine==0) else 2**(m_osc.fine/1200) # or CENT**(m_osc.fine)
+
             t = (start_idx + np.arange(frames)) / samplerate
             t = t.reshape(-1, 1)
 
-            outdata[:] += .2 * np.sin(2*np.pi * m_freq * t) # SIN WAVE
-            # outdata[:] += .2 * np.copysign(np.ones(len(outdata)).reshape(-1,1), np.sin(2*np.pi * m_freq * t)) # SQR WAVE
-            # outdata[:] += .2 * np.abs(t*m_freq-np.floor(t*m_freq+1/2)) - .1 # TRI WAVE
-            # outdata[:] += .2 * (t*m_freq - np.floor(.5 + t*m_freq)) # SAW WAVE
+            if (m_osc.waveform==0): outdata[:] += .2 * np.sin(2*pi * m_freq * t) # SIN WAVE
+            if (m_osc.waveform==1): outdata[:] += .2 * np.abs(t*m_freq-np.floor(t*m_freq+1/2)) - .1 # TRI WAVE
+            if (m_osc.waveform==2): outdata[:] += .2 * (t*m_freq - np.floor(.5 + t*m_freq)) # SAW WAVE
+            if (m_osc.waveform==3): outdata[:] += .2 * np.copysign(np.ones(len(outdata)).reshape(-1,1), np.sin(2*pi * m_freq * t)) # SQR WAVE
 
     start_idx += frames
     return
@@ -167,15 +238,10 @@ m_stream.start() # open stream w/callback
 #####|#####|#####|#####
 #####|#####|#####|#####
 
-pygame.font.init()
-my_font = pygame.font.SysFont('ocraextended', 16) # font, font size
-
-text_surface = my_font.render('py_synth v0.01', False, (0, 0, 0)) # text, aa, rgb
-octave_label = my_font.render('octave:', False, (0, 0, 0))
-octave_txt   = my_font.render(str(octave), False, (0, 0, 0))
-
 while running:
     for event in pygame.event.get():
+        m_osc.processEvent(event)
+
         m_kb.clearKeys()
         keys = pygame.key.get_pressed()
         if keys[pygame.K_z]:     m_kb.keys[0]  = 1
@@ -194,30 +260,25 @@ while running:
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHTBRACKET:
             octave = min(octave+1,7)
-            octave_txt = my_font.render(str(octave), False, (0, 0, 0)) # text, aa, rgb
+            octave_label = screen_font.render(f'octave: {str(octave)}', False, (0, 0, 0)) # text, aa, rgb
         if event.type == pygame.KEYDOWN and event.key == pygame.K_LEFTBRACKET:
             octave = max(octave-1,1)
-            octave_txt = my_font.render(str(octave), False, (0, 0, 0)) # text, aa, rgb
-
-        # mouse inputs
-        # if event.type == pygame.MOUSEBUTTONDOWN: 
-            # if width/2 <= mouse[0] <= width/2+140 and height/2 <= mouse[1] <= height/2+40: 
+            octave_label = screen_font.render(f'octave: {str(octave)}', False, (0, 0, 0)) # text, aa, rgb
 
         if event.type == pygame.QUIT:
             running = False
 
-    screen.fill("lightseagreen")
-
     ### RENDER GAME HERE ###
+    screen.fill("lightseagreen")
+    
     m_kb.drawKeys()
     m_osc.drawOsc()
 
     screen.blit(text_surface, (10,10))
     screen.blit(octave_label, (800,10))
-    screen.blit(octave_txt  , (875,10))
 
     pygame.display.flip()  # flip() the display to put your work on screen
-    clock.tick(20)         # limits FPS to 60
+    clock.tick(30)         # limits FPS to 60
 
 pygame.quit()
 
