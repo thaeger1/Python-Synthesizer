@@ -84,7 +84,7 @@ class Keyboard:
 class Oscillator:
     def __init__(self, _screen):
         self.synth_screen = _screen
-
+        self.waveform = 0 # 0 sin, 2 tri, 3 saw, 4 sqr
         # VARS
         self.osc_x = 10
         self.osc_y = 200
@@ -104,15 +104,23 @@ class Oscillator:
         # vol_pot (0,max_amp)
         # coarse pot (-12,12) semitones
         # fine pot (-100,100) cents
+
+        self.wavefuncs = [
+            lambda t : np.sin(2*np.pi*t),
+            lambda t : 2*np.abs(t-np.floor(t+1/2)) - 1,
+            lambda t : (t-np.floor(.5+t)),
+            lambda t : np.copysign(np.ones(len(t)).reshape(-1,1),np.sin(2*np.pi*t))
+        ]
+
         return
     
     def drawWF(self, samples=32):
         pygame.draw.rect(screen, (0,0,0), [self.osc_x+self.osc_width/6 - 10, self.osc_y+self.osc_height/2 - 20, 70, 40])
         pygame.draw.line(screen, (255,255,255), [self.osc_x+self.osc_width/6, self.osc_y+self.osc_height/2], [self.osc_x+self.osc_width/6 + 50, self.osc_y+self.osc_height/2], 3)
 
-        t = np.linspace(0,1,32).reshape(-1,1)
+        t = np.linspace(0,1,samples).reshape(-1,1)
         wave = np.copy(t)
-        wave[:] = np.sin(2*np.pi*t) # swap for waveform here
+        wave[:] = self.wavefuncs[self.waveform](t) # swap for waveform here
         m_graph = np.hstack((self.osc_x+self.osc_width/6+50*t,self.osc_y+self.osc_height/2+10*wave))
         pygame.draw.lines(screen, "red", False, m_graph, 3)
         return
