@@ -23,6 +23,7 @@ get_key = lambda f : round(12 * np.log2(f/440) + 49) % 12 # get key from frequen
 # pygame setup
 pygame.init()
 screen = pygame.display.set_mode((900, 600)) # w, h
+pygame.display.set_caption("pysynth")
 clock = pygame.time.Clock()
 running = True
 
@@ -32,7 +33,6 @@ osc_font = pygame.font.SysFont('ocraextended', 12)
 
 text_surface = screen_font.render('py_synth v0.02', False, (0, 0, 0)) # text, aa, rgb
 octave_label = screen_font.render(f'octave: {str(octave)}', False, (0, 0, 0))
-# octave_txt   = screen_font.render(str(octave), False, (0, 0, 0))
 
 #####|#####|#####|#####
 #####|#####|#####|#####
@@ -155,11 +155,23 @@ class Oscillator:
         ]
 
         # UI
-        self.coarse_pot = Potentiometer(_screen, self.osc_x+self.osc_width*3/5, self.osc_y+self.osc_height/2) # (-12,12) semitones
+        self.coarse_pot = Potentiometer(_screen, self.osc_x+self.osc_width*3/5, self.osc_y+self.osc_height/2)     # (-12,12) semitones
         self.fine_pot = Potentiometer(_screen, self.osc_x+self.osc_width*4/5, self.osc_y+self.osc_height/2, 12)   # (-100,100) cents
+        self.btnLx = self.osc_x+self.osc_width-32
+        self.btnRx = self.osc_x+self.osc_width-15
+        self.btny  = self.osc_y+4
+        self.btnw  = 15
+        self.btnh  = 16
         return
 
     def processEvent(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse = pygame.mouse.get_pos()
+            if mouse[0] > self.btnLx and mouse[0] < self.btnLx+self.btnw and mouse[1] > self.btny and mouse[1] < self.btny+self.btnh:
+                self.waveform = (self.waveform-1)%4
+            if mouse[0] > self.btnRx and mouse[0] < self.btnRx+self.btnw and mouse[1] > self.btny and mouse[1] < self.btny+self.btnh:
+                self.waveform = (self.waveform+1)%4
+
         # check button events (mouse over and pressed)
 
         self.fine_pot.processEvent(event)
@@ -193,7 +205,8 @@ class Oscillator:
         self.synth_screen.blit(self.coarse_txt, (self.osc_x+self.osc_width*3/5 - 12,self.osc_y+20))
         self.synth_screen.blit(self.fine_txt, (self.osc_x+self.osc_width*4/5 - 12,self.osc_y+22))
 
-        pygame.draw.rect(self.synth_screen, (0,0,0), [self.osc_x+self.osc_width-24,self.osc_y+4,8,16])
+        pygame.draw.rect(self.synth_screen, (0,0,0), [self.btnLx,self.btny,self.btnw,self.btnh])
+        pygame.draw.rect(self.synth_screen, (0,0,0), [self.btnRx,self.btny,self.btnw,self.btnh])
         self.synth_screen.blit(self.btn_left,  (self.osc_x+self.osc_width-28,self.osc_y+4))
         self.synth_screen.blit(self.btn_right, (self.osc_x+self.osc_width-12,self.osc_y+4))
 
@@ -274,6 +287,7 @@ while running:
     m_kb.drawKeys()
     m_osc.drawOsc()
 
+    pygame.draw.rect(screen, (200,200,200), [0,0,900,40])
     screen.blit(text_surface, (10,10))
     screen.blit(octave_label, (800,10))
 
