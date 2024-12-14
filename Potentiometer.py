@@ -7,12 +7,6 @@ MOUSE_SENSE = 50
 
 class Potentiometer:
     def __init__(self, _screen, _x, _y, _rad):
-        # self.gx = _gx
-        # self.gy = _gy
-
-        self.gx = 0
-        self.gy = 0
-
         self.x = _x
         self.y = _y
         self.rad = _rad
@@ -45,9 +39,6 @@ class Potentiometer:
         return
 
     def draw(self):
-        # self.surf.blit(self.fine_pot.surf, (self.x+self.fine_pot.x-self.fine_pot.rad,self.y+self.fine_pot.y-self.fine_pot.rad))
-        # self.surf.blit(self.coarse_pot.surf, (self.x+self.coarse_pot.x-self.coarse_pot.rad,self.y+self.coarse_pot.y-self.coarse_pot.rad))
-
         pygame.draw.circle(self.surf, "slategrey", [self.x+self.rad, self.y+self.rad], self.rad)
         pygame.draw.aaline(self.surf, "white", [self.x+self.rad, self.y+self.rad], [self.x+self.rad+.8*self.rad*np.sin(self.theta), self.y+self.rad-.8*self.rad*np.cos(self.theta)], True)
         return

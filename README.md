@@ -2,10 +2,15 @@
  
 A synthesizer implemented in python using the pygame and sounddevice libraries.
 
+- [pygame_window](image.png)
+
 TODOS:
 - envelopes
 - 3x osc
  - button class
+
+- audio interfacing (db)
+- spectrogram
 
 - modulation
 - noise sample(s)
@@ -29,4 +34,3 @@ Effects:
 - chorus
 
 - eq / filters
-- spectrogram

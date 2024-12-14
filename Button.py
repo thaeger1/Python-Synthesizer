@@ -10,7 +10,10 @@ class Button:
         return
 
     def processEvent(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN: self.pressed = False if self.pressed else True
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            _pos = pygame.mouse.get_pos()
+            if ((_pos[1]-self.y)*(_pos[1]-self.y) + (_pos[0]-self.x)*(_pos[0]-self.x)) > 1.2*self.rad*self.rad: return
+            self.pressed = False if self.pressed else True
         return
 
     def draw(self):
