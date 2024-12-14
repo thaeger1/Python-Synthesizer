@@ -3,12 +3,9 @@ import sounddevice as sd
 import numpy as np
 from math import pi
 
-from Oscillator import Oscillator
-from Keyboard import Keyboard
-# import matplotlib.pyplot as plt
+from Utilities import Oscillator, Keyboard
 
 # CENT = 1.0005777895
-
 start_idx = 0 # used in output buffer
 input_buffer = 0
 octave = 4
@@ -29,23 +26,36 @@ running = True
 pygame.font.init()
 screen_font = pygame.font.SysFont('ocraextended', 16) # font, font size
 
-text_surface = screen_font.render('py_synth v0.02', False, (0, 0, 0)) # text, aa, rgb
+text_surface = screen_font.render('v0.03', False, (0, 0, 0)) # text, aa, rgb
 octave_label = screen_font.render(f'octave: {str(octave)}', False, (0, 0, 0))
 
 #####|#####|#####|#####
 #####|#####|#####|#####
 
-# keyboard ui const
-
-# make keyboard, pass screen so keyboard can draw
 m_kb = Keyboard(screen)
-
 m_osc = Oscillator(screen)
 
 # triple osc
 class X3OSC:
-    def __init__():
+    def __init__(self):
         pass
+
+# adsr env
+class Envelope:
+    def __init__(self, _x, _y, _w, _h):
+        self.x = _x
+        self.y = _y
+        self.w = _w
+        self.h = _h
+
+        self.attack  = 0
+        self.decay   = 0
+        self.sustain = 1
+        self.release = 0
+        return
+
+#####|#####|#####|#####
+#####|#####|#####|#####
 
 device = sd.default.device
 samplerate = sd.query_devices(device, 'output')['default_samplerate']
@@ -110,7 +120,7 @@ while running:
 
     ### RENDER GAME HERE ###
     screen.fill("lightseagreen")
-    
+
     m_kb.drawKeys()
     m_osc.drawOsc()
 
@@ -122,12 +132,3 @@ while running:
     clock.tick(120)         # limits FPS to 60
 
 pygame.quit()
-
-# pygame colors list
-# https://python-sounddevice.readthedocs.io/en/0.3.14/examples.html
-# https://upload.wikimedia.org/wikipedia/commons/0/0c/Vector_Video_Standards8.svg
-
-# from win32api import GetSystemMetrics
-# # sceen resolution get (for later)
-# screen_res = [GetSystemMetrics(0), GetSystemMetrics(1)]
-# print(screen_res[0]/screen_res[1])
